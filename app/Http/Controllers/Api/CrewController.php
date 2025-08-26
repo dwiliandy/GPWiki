@@ -9,16 +9,43 @@ use App\Http\Controllers\Controller;
 
 class CrewController extends Controller
 {
-  public function index()
+  public function index(Request $request)
   {
-    $crews = Crew::all();
 
-    // buat array string /name_class
+    // Ambil query params
+    $page     = $request->query('page', 1);       // default page 1
+    $perPage  = $request->query('per_page', 20); // default 20
+    $sortBy   = $request->query('sort_by', 'name'); // default sort by name
+    $order    = $request->query('order', 'asc'); // default ascending
+
+    // Ambil filter dari query params
+    $query = Crew::query();
+
+    // Contoh filter: type dan class
+    if ($request->has('type')) {
+      $query->where('type', $request->query('type'));
+    }
+    if ($request->has('class')) {
+      $query->where('class', $request->query('class'));
+    }
+
+    // Sorting
+    $query->orderBy($sortBy, $order);
+
+    // Pagination
+    $crews = $query->paginate($perPage, ['*'], 'page', $page);
+
+    // Buat array string /kru_name_class
     $result = $crews->map(function ($crew) {
       return '/kru_' . $crew->name . '_' . $crew->class;
     });
 
-    return response()->json(['data' => $result]);
+    return response()->json([
+      'data' => $result,
+      'current_page' => $crews->currentPage(),
+      'last_page' => $crews->lastPage(),
+      'total' => $crews->total()
+    ]);
   }
 
   public function store(Request $request)
@@ -102,10 +129,9 @@ class CrewController extends Controller
   {
     // Misal $data = "Bill_S"
     // Pisahkan name dan class
-    $parts = explode('_', $data, 2);
-    $name = $parts[0] ?? null;
-    $class = $parts[1] ?? null;
-
+    $parts = explode('_', $data, 3);
+    $name = $parts[1] ?? null;
+    $class = $parts[2] ?? null;
     if (!$name || !$class) {
       return response()->json([
         'status' => 'error',

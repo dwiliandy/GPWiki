@@ -1,7 +1,7 @@
 import logging
 import requests
-from telegram import Update
-from telegram.ext import Application, CommandHandler, MessageHandler, filters, ContextTypes
+from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
+from telegram.ext import Application, CommandHandler, MessageHandler, filters, ContextTypes, CallbackQueryHandler
 
 # =========================
 # CONFIG
@@ -10,36 +10,94 @@ BOT_TOKEN = "7791954489:AAFa3EZrEsTFCGiqL4bS0cCYDMCRQTm2KG0"
 API_URL = "http://127.0.0.1:8000/api/crews"  
 
 # /kru command
-async def kru_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
+async def kru_index(update: Update, context: ContextTypes.DEFAULT_TYPE):
     try:
-        res = requests.get(f"{API_URL}/{crew_id}")  # GET /api/crews/{id}
+        page = 1
+        per_page = 20
+        sort_by = "atk"
+        order = "desc"
+        filters = {}  # awalnya kosong
+
+        # Ambil data dari backend
+        params = {
+            "page": page,
+            "per_page": per_page,
+            "sort_by": sort_by,
+            "order": order,
+            **filters
+        }
+        res = requests.get(API_URL, params=params)
         if res.status_code == 200:
             data = res.json()
-
-            # Ambil array dari key 'data' (sesuai controller Laravel sebelumnya)
             crews = data.get('data', [])
 
             if not crews:
                 await update.message.reply_text("Belum ada kru.")
-            else:
-                # Tampilkan langsung tiap item dalam list
-                text = "\n".join(crews)
-                await update.message.reply_text(text)
+                return
 
+            # Buat teks daftar kru dengan info sorting
+            text = "---Daftar Kru---\n\n"
+            text += "\n".join(crews)
+
+            # Inline keyboard hanya untuk class
+            keyboard = [
+                [
+                    InlineKeyboardButton("SSS", callback_data="filter_class_SSS"),
+                    InlineKeyboardButton("SS", callback_data="filter_class_SS"),
+                    InlineKeyboardButton("S", callback_data="filter_class_S"),
+                ],
+                [
+                    InlineKeyboardButton("A", callback_data="filter_class_A"),
+                    InlineKeyboardButton("B", callback_data="filter_class_B"),
+                    InlineKeyboardButton("C", callback_data="filter_class_C"),
+                ],
+                [
+                    InlineKeyboardButton("D", callback_data="filter_class_D"),
+                    InlineKeyboardButton("E", callback_data="filter_class_E"),
+                ]
+            ]
+            reply_markup = InlineKeyboardMarkup(keyboard)
+
+            await update.message.reply_text(text, reply_markup=reply_markup)
         else:
             await update.message.reply_text("Gagal ambil data kru.")
     except Exception as e:
         await update.message.reply_text(f"Error: {e}")
 
+async def kru_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    query = update.callback_query
+    await query.answer()  # wajib, agar loading stop di Telegram
 
-async def crew_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    data = query.data  # misal: "filter_class_SS"
+    if data.startswith("filter_class_"):
+        class_value = data.split("_")[-1]  # ambil SS/SSS/S...
+        params = {
+            "page": 1,
+            "per_page": 20,
+            "sort_by": "atk",
+            "order": "desc",
+            "class": class_value
+        }
+
+        res = requests.get(API_URL, params=params)
+        if res.status_code == 200:
+            crews = res.json().get("data", [])
+            text = "---Daftar Kru---\n\n"
+            text += "\n".join(crews) if crews else "Belum ada kru."
+
+            # edit message lama
+            await query.edit_message_text(text, reply_markup=query.message.reply_markup)
+
+async def show_kru(update: Update, context: ContextTypes.DEFAULT_TYPE):
     text = update.message.text
     if not text.startswith('/'):
         return
 
     data = text.lstrip('/')  # ambil command tanpa "/"
+    print(f"Command diterima: {data}")
     try:
-        res = requests.get(f"{API_URL}{data}")
+        res = requests.get(f"{API_URL}/{data}")
+        print(res)
         if res.status_code == 200:
             crew = res.json().get('data')
             msg = (
@@ -56,7 +114,7 @@ async def crew_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text(f"Error: {e}")
 
 # Handler untuk pesan forward
-async def message_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
+async def store_kru(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not update.message:
         return
 
@@ -80,9 +138,10 @@ async def message_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
 def main():
     app = Application.builder().token(BOT_TOKEN).build()
 
-    app.add_handler(CommandHandler("kru", kru_handler))
-    app.add_handler(MessageHandler(filters.ALL, message_handler))
-    app.add_handler(MessageHandler(filters.TEXT & filters.Regex(r'^/'), crew_command))
+    app.add_handler(CommandHandler("kru", kru_index))
+    app.add_handler(MessageHandler(filters.TEXT & filters.Regex(r'^/kru_\S+'), show_kru))
+    app.add_handler(MessageHandler(filters.ALL, store_kru))
+    app.add_handler(CallbackQueryHandler(kru_callback))
     
     print("Bot jalan...")
     app.run_polling()

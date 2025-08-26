@@ -6,4 +6,4 @@ use App\Http\Controllers\Api\CrewController;
 
 Route::get('/crews', [CrewController::class, 'index']);
 Route::post('/crews', [CrewController::class, 'store']);
-Route::get('/crew/{id}', [CrewController::class, 'show']);
+Route::get('/crews/{id}', [CrewController::class, 'show']);
