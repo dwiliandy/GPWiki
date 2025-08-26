@@ -11,45 +11,14 @@ class CrewController extends Controller
 {
   public function index()
   {
-    // return response()->json(Crew::all());
-    $text = "============================
-🏴‍☠️ Daftar Kru Dimiliki 🏴‍☠️
-============================
+    $crews = Crew::all();
 
-👑 Bill[S][I][1]
+    // buat array string /name_class
+    $result = $crews->map(function ($crew) {
+      return '/kru_' . $crew->name . '_' . $crew->class;
+    });
 
-📖 Type: captain
-📖 Class: S
-📖 Level: 1 /levelup_5967493
-📖 Tier: I ⭐️ /upgrade_5967493
-
-📜 Harga Buronan: 0💰
-
-❓ /informasi_Kru
-
-➕ ATK: 320 😃
-➕ DEF: 180 😃
-➕ HP: 5,200 😃
-➕ SPEED: 100 😃
-
-============================";
-
-
-
-    // ----------------- Susun Array -----------------
-    $data = [
-      'name' => $name,
-      'type' => $type,
-      'class' => $class,
-      'level' => $level,
-      'tier' => $tier,
-      'atk' => $atk,
-      'def' => $def,
-      'hp' => $hp,
-      'speed' => $speed,
-    ];
-    dd($data);
-    return response()->json(['data' => $data]);
+    return response()->json(['data' => $result]);
   }
 
   public function store(Request $request)
@@ -129,9 +98,36 @@ class CrewController extends Controller
     }
   }
 
-  public function show(string $id)
+  public function show($data)
   {
-    //
+    // Misal $data = "Bill_S"
+    // Pisahkan name dan class
+    $parts = explode('_', $data, 2);
+    $name = $parts[0] ?? null;
+    $class = $parts[1] ?? null;
+
+    if (!$name || !$class) {
+      return response()->json([
+        'status' => 'error',
+        'message' => 'Format data tidak valid'
+      ], 400);
+    }
+
+    $crew = Crew::where('name', $name)
+      ->where('class', $class)
+      ->first();
+
+    if (!$crew) {
+      return response()->json([
+        'status' => 'error',
+        'message' => 'Crew tidak ditemukan'
+      ], 404);
+    }
+
+    return response()->json([
+      'status' => 'success',
+      'data' => $crew
+    ]);
   }
 
   public function update(Request $request, string $id)
