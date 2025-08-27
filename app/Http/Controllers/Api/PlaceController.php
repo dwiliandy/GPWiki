@@ -41,12 +41,12 @@ class PlaceController extends Controller
     $allLocations = [];
 
     // Ambil semua /travel_XXX
-    preg_match_all('/\/travel_([^\s]+)/', $text, $matches);
-    $allLocations = $matches[1];
-
-    // Ambil lokasi saat ini 🎰 XXX (lokasi saat ini)
-    if (preg_match('/🎰 ([^\s]+) \(lokasi saat ini\)/', $text, $matchCurrent)) {
-      $allLocations[] = $matchCurrent[1];
+    if (preg_match_all('/\/travel_([^\s]+)|🎰 ([^\s]+) \(lokasi saat ini\)/', $text, $matches, PREG_SET_ORDER)) {
+      $allLocations = [];
+      foreach ($matches as $m) {
+        // cek group mana yang ketemu
+        $allLocations[] = $m[1] ?: $m[2];
+      }
     }
     foreach ($allLocations as $loc) {
       // Cek apakah lokasi sudah ada di DB
