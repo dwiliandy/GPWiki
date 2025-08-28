@@ -15,7 +15,7 @@ class PlaceController extends Controller
 
     // Ambil query params
     $page     = $request->query('page', 1);       // default page 1
-    $perPage  = $request->query('per_page', 20); // default 20
+    $perPage  = $request->query('per_page', 200); // default 20
 
     // Ambil filter dari query params
     $query = Place::query();
@@ -40,6 +40,10 @@ class PlaceController extends Controller
     $text = $request->raw_text;
     $allLocations = [];
 
+    if (strpos($text, "Halaman:") !== false) {
+      $text = substr($text, 0, strpos($text, "Halaman:"));
+    }
+
     // Ambil semua /travel_XXX
     if (preg_match_all('/\/travel_([^\s]+)|🎰 ([^\s]+) \(lokasi saat ini\)/', $text, $matches, PREG_SET_ORDER)) {
       $allLocations = [];
@@ -48,6 +52,7 @@ class PlaceController extends Controller
         $allLocations[] = $m[1] ?: $m[2];
       }
     }
+    $count = 0;
     foreach ($allLocations as $loc) {
       // Cek apakah lokasi sudah ada di DB
       $existing = Place::where('name', $loc)->first();
@@ -55,14 +60,13 @@ class PlaceController extends Controller
         $place = new Place();
         $place->name = $loc;
         $place->save();
-        Log::info("Simpan lokasi baru: " . $loc);
+        $count++;
       } else {
-        Log::info("Lokasi sudah ada: " . $loc);
       }
     }
     return response()->json([
       'status' => 'success',
-      'message' => 'Tempat berhasil disimpan'
+      'message' => $count . ' Tempat berhasil disimpan'
     ], 201);
   }
 

@@ -13,3 +13,6 @@ Route::get('/crews/{id}', [CrewController::class, 'show']);
 // PLACE
 Route::get('/places', [PlaceController::class, 'index']);
 Route::post('/places', [PlaceController::class, 'store']);
+
+// ITEM
+Route::post('/items', [ItemController::class, 'store']);

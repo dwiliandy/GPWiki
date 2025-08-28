@@ -8,5 +8,6 @@ async def place_index(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text("Belum ada tempat.")
         return
 
-    text = "---Daftar Tempat---\n\n" + "\n".join([p["name"] for p in places])
+    text = "---Daftar Tempat---\n\n"
+    text += "\n".join(places)
     await update.message.reply_text(text)
